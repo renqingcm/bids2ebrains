@@ -1,0 +1,29 @@
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
+
+div.block-container {
+    padding-top: 1.2rem;
+}
+
+div.streamlit-expanderHeader {
+    font-weight: 600;
+}
+
+code {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: #f4f6fa;
+}
+
+.stApp {
+    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+}
+
+.block-container h1 {
+    text-align: center;
+}

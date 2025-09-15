@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bids2ebrains"
+version = "0.1.0"
+description = "Automating BIDS -> openMINDS -> EBRAINS KG"
+requires-python = ">=3.9"
+dependencies = [
+  "bids2openminds",
+  "requests",
+  "PyYAML",
+  "streamlit",
+  "openMINDS",
+  "fairgraph"
+]
+
+[project.scripts]
+bids2ebrains = "bids2ebrains.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bids2ebrains*"]
