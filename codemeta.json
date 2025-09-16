@@ -1,0 +1,64 @@
+{
+    "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+    "@type": "SoftwareSourceCode",
+    "name": "bids2ebrains",
+    "description": "Automating BIDS -> openMINDS -> EBRAINS KG",
+    "version": "0.1.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "codeRepository": "https://gitlab.ebrains.eu/ri/projects-and-initiatives/bids2ebrains/bids2ebrains",
+    "programmingLanguage": "Python",
+    "operatingSystem": "Cross-platform",
+    "author": [
+        {
+            "@type": "Person",
+            "givenName": "Renqing",
+            "familyName": "Cuomao",
+            "email": "renqing.cuomao@epfl.ch"
+        }
+    ],
+    "maintainer": [
+        {
+            "@type": "Person",
+            "name": "Lyuba Zehl",
+            "email": "Lyuba.Zehl@ebrains.eu"
+        },
+        {
+            "@type": "Person",
+            "name": "Raphaël Gazzotti",
+            "email": "raphael.gazzotti@ebrains.eu"
+        },
+        {
+            "@type": "Person",
+            "name": "Cyril Pernet",
+            "email": "cyril.pernet@nru.dk"
+        },
+        {
+            "@type": "Person",
+            "name": "Peyman Najafi",
+            "email": "peyman.najafi@cnrs.fr"
+        },
+        {
+            "@type": "Person",
+            "name": "Andrew P. Davison",
+            "email": "andrew.davison@cnrs.fr"
+        },
+        {
+            "@type": "Person",
+            "name": "Sophia Pieschnik",
+            "email": "sophia.pieschnik@medisin.uio.no"
+        },
+        {
+            "@type": "Person",
+            "name": "Oliver Schmid",
+            "email": "oliver.schmid@cscs.ch"
+        }
+    ],
+    "keywords": [
+        "BIDS",
+        "openMINDS",
+        "EBRAINS",
+        "neuroscience",
+        "metadata",
+        "automation"
+    ]
+}
