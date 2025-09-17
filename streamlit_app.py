@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import streamlit as st
-from bids2ebrains import convert_bids, scan_missing, patch_openminds, upload_to_kg
+from bids2ebrains import convert_bids, scan_missing, patch_openminds, upload_to_kg, group_subjects, validate_jsonld
 import subprocess, time
 import json, zipfile, shutil
 from bids2ebrains.mappings import LICENSE, ACCESSIBILITY, AGE_CATEGORY
@@ -84,6 +84,12 @@ def _maybe_text(key: str, label: str, placeholder: str = "", help_text: str = ""
         return v.strip()
     return ""
 
+def _check_iri_field(label: str, key: str, placeholder: str = "") -> str:
+    val = st.text_input(label, key=key, placeholder=placeholder)
+    if val and not (val.startswith("http://") or val.startswith("https://")):
+        st.warning("That doesn't look like an IRI (should start with http:// or https://).")
+    return val.strip()
+
 st.set_page_config(page_title="BIDS – openMINDS – EBRAINS KG", page_icon="🧠", layout="wide")
 
 css_path = Path(__file__).with_name("style.css")
@@ -92,22 +98,27 @@ if css_path.exists():
 
 st.markdown("<h1>BIDS → openMINDS → EBRAINS KG</h1>", unsafe_allow_html=True)
 
+
+# Step 1 Convert
+
 with st.expander("Step 1 Convert ⚙️", expanded=False):
-    if "bids_dir" not in st.session_state:
-        st.session_state["bids_dir"] = ""
-    if "out_dir" not in st.session_state:
-        st.session_state["out_dir"] = ""
-    st.write("If you don't have a local BIDS dataset, either download the ds001 example or upload a zipped BIDS dataset.")
+    st.session_state.setdefault("bids_dir", "")
+    st.session_state.setdefault("out_dir", "")
+    st.session_state.setdefault("cohort", False)
+    st.session_state.setdefault("cohort_label", "cohort-1")
+
+    st.write("If you don't have a local BIDS dataset, either download the ds001 example or add a zipped BIDS dataset from your computer (analyzed locally).")
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Download ds001 example"):
             download_ds001_sparse()
     with c2:
         up = st.file_uploader(
-            "Or upload a BIDS .zip",
+            "Or add a local BIDS .zip (analyzed locally and no data is uploaded)",
             type="zip",
-            help="A zipped BIDS dataset. It will be extracted and the BIDS root (folder with dataset_description.json) will be auto-detected."
+            help="Select a zipped BIDS dataset from your local machine. The archive is processed locally; nothing is uploaded."
         )
+
         if up is not None:
             try:
                 upload_root = Path("bids-upload")
@@ -133,20 +144,26 @@ with st.expander("Step 1 Convert ⚙️", expanded=False):
                     st.error("Could not find dataset_description.json in the uploaded archive.")
             except Exception as e:
                 st.error(f"Failed to process upload: {e}")
+
     bids_dir = st.text_input(
         "BIDS directory",
         key="bids_dir",
-        value=st.session_state["bids_dir"],
         placeholder="e.g., bids-examples/ds001",
         help="Path to a local BIDS dataset. Use Download or Upload if you don't have one."
     )
     out_dir = st.text_input(
         "Output JSON-LD folder",
         key="out_dir",
-        value=st.session_state["out_dir"],
         placeholder="e.g., openminds-out",
         help="Folder where the converted openMINDS JSON-LD files will be written."
     )
+
+    # Cohort option
+    st.markdown("#### Privacy / Cohort output")
+    st.caption("Instead of individual `Subject` + `SubjectState`, create `GroupSubject` + `SubjectGroupState` (cohort-level metadata).")
+    cohort = st.checkbox("Create cohort-level metadata (GroupSubject + SubjectGroupState)", key="cohort")
+    cohort_label = st.text_input("Cohort label", key="cohort_label", disabled=not st.session_state["cohort"])
+
     if st.button("Convert"):
         if not bids_dir or not Path(bids_dir).exists():
             st.error("Please provide a valid BIDS directory (use Download or Upload).")
@@ -154,13 +171,20 @@ with st.expander("Step 1 Convert ⚙️", expanded=False):
             st.error("Please provide an output folder name.")
         else:
             convert_bids(Path(bids_dir), Path(out_dir))
+            if cohort:
+                group_subjects(Path(out_dir), label=(cohort_label or "cohort-1"), keep_individuals=False)
+                st.info(f"Cohortized output created with label: {cohort_label or 'cohort-1'}.")
+
             st.success(f"Converted to {out_dir}")
             s = jsonld_summary(Path(out_dir))
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Dataset(s)", s.get("Dataset", 0))
             c2.metric("DatasetVersion(s)", s.get("DatasetVersion", 0))
-            c3.metric("Subject(s)", s.get("Subject", 0))
+            c3.metric("Subject(s) / GroupSubject(s)", s.get("Subject", 0) + s.get("GroupSubject", 0))
             c4.metric("File(s)", s.get("File", 0))
+
+
+# Step 2 Scan & Patch
 
 with st.expander("Step 2 Scan & Patch 🩹"):
     jsonld = st.text_input(
@@ -169,12 +193,16 @@ with st.expander("Step 2 Scan & Patch 🩹"):
         help="Folder containing the .jsonld files produced in Step 1."
     )
     st.session_state["jsonld"] = jsonld
-    repo = st.text_input(
-        "Repository IRI",
-        value=st.session_state.get("repo", "https://data-proxy.ebrains.eu/api/v1/buckets/my_bucket/"),
-        help="Public repository IRI where files live (for example an EBRAINS Data-Proxy bucket). Used to create the FileRepository."
-    )
-    st.session_state["repo"] = repo
+
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        if st.button("Cohortize existing JSON-LD"):
+            try:
+                group_subjects(Path(jsonld), label="cohort-1", keep_individuals=False)
+                st.success("Created GroupSubject/SubjectGroupState and retargeted references.")
+            except Exception as e:
+                st.error(f"Failed to cohortize: {e}")
+
     interactive = st.checkbox(
         "Also allow terminal prompts (CLI style)",
         value=False,
@@ -202,6 +230,7 @@ with st.expander("Step 2 Scan & Patch 🩹"):
             st.json(st.session_state["scan_report"])
         with st.expander("Unique prompts"):
             st.json(st.session_state["scan_prompts"])
+
     st.subheader("Fill required fields")
     prompts = st.session_state.get("scan_prompts", {})
     auto_filled = {"FileRepository.hostedBy", "FileRepository.label"}
@@ -210,12 +239,40 @@ with st.expander("Step 2 Scan & Patch 🩹"):
             prompts.pop(k, None)
 
     st.caption(
-    "Note: SubjectState internal identifiers are expected from the converter "
-    "If they are missing, upgrade the converter; "
-    "lookup labels will be auto-generated here once identifiers exist."
-)
+        "Note: SubjectState internal identifiers are expected from the converter. "
+        "If they are missing, upgrade the converter; "
+        "lookup labels will be auto-generated here once identifiers exist."
+    )
+
+    st.markdown("### Custodians (Persons)")
+    st.caption(
+            "Add 1..N persons to be registered as dataset custodians.\n"
+            "Priority order for matching: **Existing Person IRI** → **ORCID** → **First & Last name**.\n"
+            "If you paste an IRI, it overrides ORCID and names.\n"
+            "When no ORCID is given, and the Disambiguation toggle is ON, we search by family name and use\n"
+            "fuzzy similarity on the given name to avoid duplicates."
+        )
+
+    n = st.number_input(
+        "Number of custodians to add",
+        min_value=0, max_value=20, value=0, step=1, key="cust_n"
+    )
+
+    st.markdown("### Disambiguation (avoid duplicates)")
+    resolve_flag = st.checkbox(
+        "Try to match custodian Persons in EBRAINS (fairgraph)",
+        value=False,
+        help="If enabled, we will attempt to find existing Person entries in the KG before creating new ones."
+    )
+    resolve_token = st.text_input(
+        "EBRAINS token for disambiguation (optional)",
+        type="password",
+        value=os.getenv("EBRAINS_TOKEN", "")
+    )
+
     with st.form("patch_form"):
         answers = {}
+
         if "DatasetVersion.license" in prompts:
             lic_labels = ["(choose)"] + sorted(LICENSE.keys()) + ["Enter IRI manually"]
             lic_choice = st.selectbox(
@@ -223,11 +280,14 @@ with st.expander("Step 2 Scan & Patch 🩹"):
                 help="Pick an openMINDS License or paste a full IRI."
             )
             if lic_choice == "Enter IRI manually":
-                val = st.text_input("License IRI", key="dv_license_iri", placeholder="https://openminds.ebrains.eu/instances/licenses/CC-BY-4.0")
-                if val.strip():
-                    answers["DatasetVersion.license"] = val.strip()
-            elif lic_choice != "(choose)":
-                answers["DatasetVersion.license"] = lic_choice
+                val = _check_iri_field(
+                    "License IRI",
+                    key="dv_license_iri",
+                    placeholder="https://openminds.ebrains.eu/instances/licenses/CC-BY-4.0",
+                )
+                if val:
+                    answers["DatasetVersion.license"] = val
+
         if "DatasetVersion.accessibility" in prompts:
             acc_labels = ["(choose)"] + sorted(ACCESSIBILITY.keys()) + ["Enter IRI manually"]
             acc_choice = st.selectbox(
@@ -235,23 +295,31 @@ with st.expander("Step 2 Scan & Patch 🩹"):
                 help="Pick an openMINDS ProductAccessibility or paste a full IRI."
             )
             if acc_choice == "Enter IRI manually":
-                val = st.text_input("Accessibility IRI", key="dv_access_iri", placeholder="https://openminds.ebrains.eu/instances/productAccessibility/freeAccess")
-                if val.strip():
-                    answers["DatasetVersion.accessibility"] = val.strip()
-            elif acc_choice != "(choose)":
-                answers["DatasetVersion.accessibility"] = acc_choice
-        if "SubjectState.ageCategory" in prompts:
+                val = _check_iri_field(
+                    "Accessibility IRI",
+                    key="dv_access_iri",
+                    placeholder="https://openminds.ebrains.eu/instances/productAccessibility/freeAccess",
+                )
+                if val:
+                    answers["DatasetVersion.accessibility"] = val
+
+        if "SubjectState.ageCategory" in prompts or "SubjectGroupState.ageCategory" in prompts:
             age_labels = ["(choose)"] + sorted(AGE_CATEGORY.keys()) + ["Enter IRI manually"]
             age_choice = st.selectbox(
-                "SubjectState.ageCategory", age_labels, index=0, key="ss_age",
+                "AgeCategory (SubjectState / SubjectGroupState)",
+                age_labels, index=0, key="ss_age",
                 help="Pick an openMINDS AgeCategory or paste a full IRI."
             )
             if age_choice == "Enter IRI manually":
-                val = st.text_input("AgeCategory IRI", key="ss_age_iri", placeholder="https://openminds.ebrains.eu/instances/ageCategory/youngAdult")
-                if val.strip():
-                    answers["SubjectState.ageCategory"] = val.strip()
-            elif age_choice != "(choose)":
-                answers["SubjectState.ageCategory"] = age_choice
+                val = _check_iri_field(
+                    "AgeCategory IRI",
+                    key="ss_age_iri",
+                    placeholder="https://openminds.ebrains.eu/instances/ageCategory/youngAdult",
+                )
+                if val:
+                    answers["SubjectState.ageCategory"] = val
+                    answers["SubjectGroupState.ageCategory"] = val
+
         v = _maybe_text("DatasetVersion.versionIdentifier", "DatasetVersion.versionIdentifier", "v1.0.0", "Short identifier for this dataset version.")
         if v: answers["DatasetVersion.versionIdentifier"] = v
         v = _maybe_text("Dataset.description", "Dataset.description", "One-paragraph dataset description.", "Human-readable dataset description.")
@@ -266,21 +334,6 @@ with st.expander("Step 2 Scan & Patch 🩹"):
         if v: answers["DatasetVersion.studyTarget"] = v
         v = _maybe_text("DatasetVersion.keyword", "DatasetVersion.keyword", "fMRI; risk-taking; neuroimaging", "Keywords; use semicolons to separate multiple terms.")
         if v: answers["DatasetVersion.keyword"] = v
-        
-        # Custodians (Persons)
-        st.markdown("### Custodians (Persons)")
-        st.caption(
-            "Add 1..N persons to be registered as dataset custodians.\n"
-            "Priority order for matching: **Existing Person IRI** → **ORCID** → **First & Last name**.\n"
-            "If you paste an IRI, it overrides ORCID and names.\n"
-            "When no ORCID is given, and the Disambiguation toggle is ON, we search by family name and use.\n"
-            "fuzzy similarity on the given name to avoid duplicates."
-        )
-
-        n = st.number_input(
-            "Number of custodians to add",
-            min_value=0, max_value=20, value=0, step=1, key="cust_n"
-        )
 
         custodians = []
         for i in range(int(n)):
@@ -327,26 +380,39 @@ with st.expander("Step 2 Scan & Patch 🩹"):
         if custodians:
             answers["custodians"] = custodians
 
-        st.markdown("### Disambiguation (avoid duplicates)")
-        resolve_flag = st.checkbox(
-            "Try to match custodian Persons in EBRAINS (fairgraph)",
-            value=False,
-            help="If enabled, we will attempt to find existing Person entries in the KG via fairgraph before creating new ones."
-        )
-        resolve_token = st.text_input(
-            "EBRAINS token for disambiguation (optional; will use EBRAINS_TOKEN env if left blank)",
-            type="password",
-            value=os.getenv("EBRAINS_TOKEN", ""),
-            help="Needed for fairgraph lookups. If empty, we attempt to read EBRAINS_TOKEN from the environment."
-        )
-        
-        submitted = st.form_submit_button("Patch", help="Apply the provided values to all objects missing those fields.")
+        submitted = st.form_submit_button("Patch", help="Apply provided values to all missing fields.")
         if submitted:
             if not answers:
                 st.warning("Please enter at least one value before patching.")
             else:
-                patch_openminds(Path(jsonld), repo_iri=repo, interactive=False, answers=answers, resolve_persons=resolve_flag, token=(resolve_token or None),)
-                st.success("Patched missing fields where values were provided.")
+                patch_openminds(
+                    Path(jsonld),
+                    repo_iri="",
+                    interactive=False,
+                    answers=answers,
+                    resolve_persons=st.session_state["resolve_flag"],
+                    token=(st.session_state["resolve_token"] or None),
+                )
+                st.success("Patched missing fields in JSON-LD files.")
+                errs = validate_jsonld(Path(jsonld))
+                if not errs:
+                    st.success("Schema validation passed")
+                else:
+                    st.error(f"Schema validation found {len(errs)} issue(s):")
+                    for fp, msg in errs[:50]:
+                        st.write(f"• **{fp}** — {msg}")
+                    st.info("Fix the inputs above and patch again, or correct the JSON-LD manually.")
+
+    if st.button("Validate JSON-LD"):
+        errs = validate_jsonld(Path(jsonld))
+        if not errs:
+            st.success("Schema validation passed")
+        else:
+            st.error(f"Schema validation found {len(errs)} issue(s):")
+            for fp, msg in errs[:100]:
+                st.write(f"• **{fp}** — {msg}")
+
+# Step 3 Upload
 
 with st.expander("Step 3 Upload 🚀"):
     jsonld = st.text_input("JSON-LD folder to upload", "openminds-out", help="Folder containing the .jsonld files to upload.")
@@ -354,8 +420,15 @@ with st.expander("Step 3 Upload 🚀"):
     token = st.text_input("EBRAINS token (or set EBRAINS_TOKEN env)", type="password", value=os.getenv("EBRAINS_TOKEN",""), help="Personal access token from the EBRAINS portal.")
     dry = st.checkbox("Dry run", value=True, help="If enabled, only prints which files would be uploaded.")
     if st.button("Upload"):
-        with st.status("Uploading to EBRAINS KG…", expanded=True) as status:
-            upload_to_kg(Path(jsonld), space=space, token=token or None, dry_run=dry)
-            status.update(label="Upload completed.", state="complete", expanded=False)
-        if not dry:
-            st.balloons()
+        errs = validate_jsonld(Path(jsonld))
+        if errs and not dry:
+            st.error("Upload blocked: schema validation failed. Run validation and fix errors first.")
+            # show a short list so users see what to fix
+            for fp, msg in errs[:50]:
+                st.write(f"• **{fp}** — {msg}")
+        else:
+            with st.status("Uploading to EBRAINS KG…", expanded=True) as status:
+                upload_to_kg(Path(jsonld), space=space, token=token or None, dry_run=dry)
+                status.update(label="Upload completed.", state="complete", expanded=False)
+            if not dry:
+                st.balloons()
