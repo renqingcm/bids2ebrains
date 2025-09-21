@@ -390,8 +390,8 @@ with st.expander("Step 2 Scan & Patch 🩹"):
                     repo_iri="",
                     interactive=False,
                     answers=answers,
-                    resolve_persons=st.session_state["resolve_flag"],
-                    token=(st.session_state["resolve_token"] or None),
+                    resolve_persons=resolve_flag,
+                    token=resolve_token or None,
                 )
                 st.success("Patched missing fields in JSON-LD files.")
                 errs = validate_jsonld(Path(jsonld))
