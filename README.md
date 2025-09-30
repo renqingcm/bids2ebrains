@@ -26,9 +26,6 @@ Notes:
 
 ## 🚀 Quick Start (UI)
 
-```bash
-streamlit run streamlit_app.py
-```
 Step 1 – Convert
 - No local BIDS data? Click “Download ds001 example” (requires git) or upload a BIDS .zip.
 - Set Output JSON-LD folder (e.g., openminds-out) and click Convert.
