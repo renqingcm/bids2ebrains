@@ -1,6 +1,0 @@
-bids2openminds
-requests
-PyYAML
-streamlit
-openMINDS
-fairgraph
