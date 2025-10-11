@@ -6,15 +6,45 @@ build-backend = "setuptools.build_meta"
 name = "bids2ebrains"
 version = "0.1.0"
 description = "Automating BIDS -> openMINDS -> EBRAINS KG"
+readme = "README.md"
+
+license = "MIT"
+license-files = ["LICENSE"]
+
+authors = [
+  { name = "Renqing Cuomao", email = "renqing.cuomao@epfl.ch" }
+]
+maintainers = [
+  { name = "Lyuba Zehl", email = "Lyuba.Zehl@ebrains.eu" },
+  { name = "Raphaël Gazzotti", email = "raphael.gazzotti@ebrains.eu" },
+  { name = "Cyril Pernet", email = "cyril.pernet@nru.dk" },
+  { name = "Peyman Najafi", email = "peyman.najafi@cnrs.fr" },
+  { name = "Sophia Pieschnik", email = "sophia.pieschnik@medisin.uio.no" },
+  { name = "Andrew P. Davison", email = "andrew.davison@cnrs.fr" },
+  { name = "Oliver Schmid", email = "oliver.schmid@cscs.ch" }
+]
+keywords = ["BIDS", "openMINDS", "EBRAINS", "metadata"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Information Analysis"
+]
+homepage = "https://gitlab.ebrains.eu/ri/projects-and-initiatives/bids2ebrains/bids2ebrains"
+repository = "https://gitlab.ebrains.eu/ri/projects-and-initiatives/bids2ebrains/bids2ebrains.git"
 requires-python = ">=3.9"
 dependencies = [
   "bids2openminds",
   "requests",
   "PyYAML",
+  "openMINDS"
   "streamlit",
-  "openMINDS",
-  "fairgraph"
+  "fairgraph",
 ]
+
+[project.optional-dependencies]
+ui = ["streamlit"]
+kg = ["fairgraph"]
+all = ["streamlit", "fairgraph"]
 
 [project.scripts]
 bids2ebrains = "bids2ebrains.cli:main"
