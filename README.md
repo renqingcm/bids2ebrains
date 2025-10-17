@@ -96,6 +96,7 @@ python -m streamlit run streamlit_app.py
 
 **Step 3 – Upload**
 - Set KG space, provide EBRAINS token (or via EBRAINS_TOKEN), then Upload.
+- Use --dry-run to simulate uploads without writing to the KG.
 - Upload is blocked if validation fails.
 
 ## Tokens & environment
