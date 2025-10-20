@@ -104,8 +104,6 @@ st.markdown("<h1>BIDS → openMINDS → EBRAINS KG</h1>", unsafe_allow_html=True
 with st.expander("Step 1 Convert ⚙️", expanded=False):
     st.session_state.setdefault("bids_dir", "")
     st.session_state.setdefault("out_dir", "")
-    st.session_state.setdefault("cohort", False)
-    st.session_state.setdefault("cohort_label", "cohort-1")
 
     st.write("If you don't have a local BIDS dataset, either download the ds001 example or add a zipped BIDS dataset from your computer (analyzed locally).")
     c1, c2 = st.columns(2)
@@ -158,12 +156,6 @@ with st.expander("Step 1 Convert ⚙️", expanded=False):
         help="Folder where the converted openMINDS JSON-LD files will be written."
     )
 
-    # Cohort option
-    st.markdown("#### Privacy / Cohort output")
-    st.caption("Instead of individual `Subject` + `SubjectState`, create `GroupSubject` + `SubjectGroupState` (cohort-level metadata).")
-    cohort = st.checkbox("Create cohort-level metadata (GroupSubject + SubjectGroupState)", key="cohort")
-    cohort_label = st.text_input("Cohort label", key="cohort_label", disabled=not st.session_state["cohort"])
-
     if st.button("Convert"):
         if not bids_dir or not Path(bids_dir).exists():
             st.error("Please provide a valid BIDS directory (use Download or Upload).")
@@ -171,16 +163,12 @@ with st.expander("Step 1 Convert ⚙️", expanded=False):
             st.error("Please provide an output folder name.")
         else:
             convert_bids(Path(bids_dir), Path(out_dir))
-            if cohort:
-                group_subjects(Path(out_dir), label=(cohort_label or "cohort-1"), keep_individuals=False)
-                st.info(f"Cohortized output created with label: {cohort_label or 'cohort-1'}.")
-
             st.success(f"Converted to {out_dir}")
             s = jsonld_summary(Path(out_dir))
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Dataset(s)", s.get("Dataset", 0))
             c2.metric("DatasetVersion(s)", s.get("DatasetVersion", 0))
-            c3.metric("Subject(s) / GroupSubject(s)", s.get("Subject", 0) + s.get("GroupSubject", 0))
+            c3.metric("Subject(s)", s.get("Subject", 0))
             c4.metric("File(s)", s.get("File", 0))
 
 
@@ -193,15 +181,6 @@ with st.expander("Step 2 Scan & Patch 🩹"):
         help="Folder containing the .jsonld files produced in Step 1."
     )
     st.session_state["jsonld"] = jsonld
-
-    c1, c2 = st.columns([1, 3])
-    with c1:
-        if st.button("Cohortize existing JSON-LD"):
-            try:
-                group_subjects(Path(jsonld), label="cohort-1", keep_individuals=False)
-                st.success("Created GroupSubject/SubjectGroupState and retargeted references.")
-            except Exception as e:
-                st.error(f"Failed to cohortize: {e}")
 
     interactive = st.checkbox(
         "Also allow terminal prompts (CLI style)",
@@ -413,22 +392,32 @@ with st.expander("Step 2 Scan & Patch 🩹"):
                 st.write(f"• **{fp}** — {msg}")
 
 # Step 3 Upload
-
 with st.expander("Step 3 Upload 🚀"):
-    jsonld = st.text_input("JSON-LD folder to upload", "openminds-out", help="Folder containing the .jsonld files to upload.")
-    space = st.text_input("KG space", "collab-bids2ebrains-test", help="Target EBRAINS KG space.")
-    token = st.text_input("EBRAINS token (or set EBRAINS_TOKEN env)", type="password", value=os.getenv("EBRAINS_TOKEN",""), help="Personal access token from the EBRAINS portal.")
-    dry = st.checkbox("Dry run", value=True, help="If enabled, only prints which files would be uploaded.")
+    jsonld = st.text_input(
+        "JSON-LD folder to upload",
+        "openminds-out",
+        help="Folder containing the .jsonld files to upload."
+    )
+    space = st.text_input(
+        "KG space",
+        "collab-bids2ebrains-test",
+        help="Target EBRAINS KG space."
+    )
+    token = st.text_input(
+        "EBRAINS token (or set EBRAINS_TOKEN env)",
+        type="password",
+        value=os.getenv("EBRAINS_TOKEN", ""),
+        help="Personal access token from the EBRAINS portal."
+    )
+
     if st.button("Upload"):
         errs = validate_jsonld(Path(jsonld))
-        if errs and not dry:
-            st.error("Upload blocked: schema validation failed. Run validation and fix errors first.")
-            # show a short list so users see what to fix
+        if errs:
+            st.error("Upload blocked: schema validation failed. Please fix errors before uploading.")
             for fp, msg in errs[:50]:
                 st.write(f"• **{fp}** — {msg}")
         else:
             with st.status("Uploading to EBRAINS KG…", expanded=True) as status:
-                upload_to_kg(Path(jsonld), space=space, token=token or None, dry_run=dry)
-                status.update(label="Upload completed.", state="complete", expanded=False)
-            if not dry:
-                st.balloons()
+                upload_to_kg(Path(jsonld), space=space, token=token or None)
+                status.update(label="Upload completed successfully.", state="complete", expanded=False)
+            st.balloons()
