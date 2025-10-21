@@ -1,3 +1,5 @@
+__version__ = "0.1.0"
+
 from .converter import Converter
 from .scanner import Scanner
 from .patcher import Patcher
@@ -23,4 +25,5 @@ __all__ = [
     "upload_to_kg",
     "group_subjects",
     "validate_jsonld",
+    "__version__",
 ]

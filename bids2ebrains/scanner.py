@@ -19,6 +19,8 @@ class Scanner:
         "Subject": ["species"],
         "SubjectState": ["ageCategory"],
         "BehaviouralProtocol": ["label", "description"],
+        "GroupSubject": ["species"],
+        "SubjectGroupState": ["ageCategory"],
     }
 
     @staticmethod
