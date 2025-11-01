@@ -113,7 +113,7 @@ Validation uses the openMINDS Python library. In the UI, errors are shown with t
 ```bash
 bids2ebrains validate --jsonld <JSONLD_DIR>
 ```
-Upload is refused if validation fails.
+Upload is refused if validation fails. (validation put aside for now)
 
 ## Requirements
 - Python ≥ 3.9
