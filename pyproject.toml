@@ -7,10 +7,7 @@ name = "bids2ebrains"
 version = "0.1.0"
 description = "Automating BIDS -> openMINDS -> EBRAINS KG"
 readme = "README.md"
-
-license = "MIT"
-license-files = ["LICENSE"]
-
+license = { text = "MIT" }
 authors = [
   { name = "Renqing Cuomao", email = "renqing.cuomao@epfl.ch" }
 ]
@@ -26,6 +23,7 @@ maintainers = [
 keywords = ["BIDS", "openMINDS", "EBRAINS", "metadata"]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
   "Intended Audience :: Science/Research",
   "Topic :: Scientific/Engineering :: Information Analysis"
 ]
@@ -36,15 +34,10 @@ dependencies = [
   "bids2openminds",
   "requests",
   "PyYAML",
-  "openMINDS",
   "streamlit",
-  "fairgraph",
+  "openMINDS",
+  "fairgraph"
 ]
-
-[project.optional-dependencies]
-ui = ["streamlit"]
-kg = ["fairgraph"]
-all = ["streamlit", "fairgraph"]
 
 [project.scripts]
 bids2ebrains = "bids2ebrains.cli:main"
