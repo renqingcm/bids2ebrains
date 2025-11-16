@@ -10,6 +10,7 @@ from .utils import sha256_and_size, local_name, is_iri
 from .resolver import resolve_person_iri
 from .scanner import Scanner 
 
+
 class Patcher:
     def __init__(self, jsonld_dir: Path):
         self.jsonld_dir = jsonld_dir
@@ -156,11 +157,20 @@ class Patcher:
         token: Optional[str] = None,
     ):
 
-        repo_iri = repo_iri or "unused://local-placeholder"
+        repo_iri = (repo_iri or "file://local-placeholder").strip()
         answers = {**(self._load_answers(answers_file)), **(answers or {})}
 
+        for fp in self.jsonld_dir.glob("*.jsonld"):
+            try:
+                obj = json.loads(fp.read_text())
+                if isinstance(obj, dict) and obj.get("@type", "").endswith("FileRepository"):
+                    fp.unlink(missing_ok=True)
+            except Exception:
+                pass
+            
         repo_id = self.kgid()
-        label = repo_iri.rstrip("/").rsplit("/", 1)[-1] or "primary-repository"
+        label = repo_iri.rstrip("/").rsplit("/", 1)[-1] or "Local repository"
+
         repo_stub = {
             "@context": {"@vocab": OM_VOCAB},
             "@id": repo_id,
@@ -196,7 +206,7 @@ class Patcher:
                     obj[key] = self._apply_answers_to_value(tkey, answers[tkey])
 
             if typ == "File":
-                obj.setdefault("fileRepository", {"@id": repo_id})
+                obj["fileRepository"] = {"@id": repo_id}
                 if "IRI" in obj and isinstance(obj["IRI"], str):
                     real = obj["IRI"].replace("file://", "")
                     if os.path.exists(real):
@@ -210,7 +220,6 @@ class Patcher:
                             {"@type": f"{OM_CORE}Hash", "algorithm": "SHA-256", "digest": digest}
                         )
 
-            # normalize lookupLabel for Subject/SubjectState when internalIdentifier present
             try:
                 if dsv_suffix:
                     if typ == "Subject":
@@ -224,7 +233,6 @@ class Patcher:
             except Exception:
                 pass
 
-            # custodians
             try:
                 if typ == "Dataset" and cust_specs:
                     current = obj.get("custodian")

@@ -10,7 +10,7 @@ def parse_sets(items):
         if "=" not in item:
             raise SystemExit(f"--set expects Type.key=value, got: {item}")
         left, value = item.split("=", 1)
-        left = left.strip().replace(":", ".", 1)  # allow colon form
+        left = left.strip().replace(":", ".", 1) 
         if "." not in left:
             raise SystemExit(f"--set expects Type.key=value, got: {item}")
         result[left] = value.strip()
