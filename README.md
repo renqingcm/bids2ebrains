@@ -2,8 +2,6 @@
 
 A user-friendly toolchain to transform BIDS metadata into EBRAINS-compliant openMINDS JSON-LD, ready for upload to the EBRAINS Knowledge Graph (KG). User can use a Streamlit UI or a CLI with matching functionality.
 
----
-
 ## 1) Installation
 
 ```bash
@@ -19,8 +17,6 @@ pip install "bids2ebrains[kg]"
 # Everything
 pip install "bids2ebrains[all]"
 ```
-
----
 
 ## 2) Usage
 
@@ -58,24 +54,16 @@ The UI provides an end-to-end workflow for preparing BIDS datasets for registrat
 - **Scan & Patch** – Detect missing mandatory fields and complete them through guided forms using pick-lists or free-text input.
 - **Validate & Upload** - Run schema-aware validation (with automatic fallback to structural checks). After validation, set `EBRAINS_TOKEN` in your environment, choose a KG space, and upload the finalized metadata.
 
----
-
 ## 3) Contribution
 Contributions are welcome. Please open an Issue or a Merge Request in this repository. (A dedicated `CONTRIBUTING.md` may be added in the future.)
-
----
 
 ## 4) License
 
 **MIT** - see `LICENSE`
 
----
-
 ## 5) Acknowledgements
 
 This work was developed as part of the Google Summer of Code 2025 program under the mentorship of the International Neuroinformatics Coordinating Facility (INCF). It also received funding from the European Union’s Horizon Europe research and innovation programme under grant agreement No. 101147319 (EBRAINS 2.0).
-
----
 
 ## 6) Further Documentation
 
